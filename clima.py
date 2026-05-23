@@ -1,5 +1,4 @@
 import os
-from typing import Optional
 
 import requests
 from rich.table import Table
@@ -9,31 +8,43 @@ from utils import console
 API_BASE = "https://api.openweathermap.org/data/2.5/weather"
 
 
-def _emoji_condicion(descripcion: str) -> str:
+# Devuelve el emoji que mejor representa la condición climática recibida
+def _emoji_condicion(descripcion):
     desc = descripcion.lower()
-    if any(w in desc for w in ["tormenta", "trueno", "eléctrica"]):
-        return "⛈"
-    if any(w in desc for w in ["lluvia", "llovizna", "chubasco", "aguacero"]):
-        return "🌧"
-    if any(w in desc for w in ["nieve", "granizo", "nevada"]):
-        return "❄️"
-    if any(w in desc for w in ["niebla", "neblina", "bruma"]):
-        return "🌫"
-    if any(w in desc for w in ["nublado", "cubierto"]):
-        return "☁️"
-    if any(w in desc for w in ["nubes", "parcial"]):
-        return "⛅"
-    if any(w in desc for w in ["despejado", "soleado", "claro"]):
-        return "☀️"
+    # Verificamos cada categoría buscando palabras clave en la descripción
+    for w in ["tormenta", "trueno", "eléctrica"]:
+        if w in desc:
+            return "⛈"
+    for w in ["lluvia", "llovizna", "chubasco", "aguacero"]:
+        if w in desc:
+            return "🌧"
+    for w in ["nieve", "granizo", "nevada"]:
+        if w in desc:
+            return "❄️"
+    for w in ["niebla", "neblina", "bruma"]:
+        if w in desc:
+            return "🌫"
+    for w in ["nublado", "cubierto"]:
+        if w in desc:
+            return "☁️"
+    for w in ["nubes", "parcial"]:
+        if w in desc:
+            return "⛅"
+    for w in ["despejado", "soleado", "claro"]:
+        if w in desc:
+            return "☀️"
     return "🌤"
 
 
-def obtener_clima(ciudad: str) -> Optional[dict]:
+# Consulta la API de OpenWeatherMap y devuelve los datos del clima como diccionario
+def obtener_clima(ciudad):
+    # Leemos la API key del archivo .env
     api_key = os.getenv("OPENWEATHERMAP_API_KEY", "")
     if not api_key:
         console.print("[red]  ✗ Error: OPENWEATHERMAP_API_KEY no configurada en el archivo .env[/red]")
         return None
 
+    # Parámetros de la consulta a la API
     params = {
         "q": ciudad,
         "appid": api_key,
@@ -42,6 +53,7 @@ def obtener_clima(ciudad: str) -> Optional[dict]:
     }
 
     resp = None
+    # Hacemos la solicitud HTTP y capturamos posibles errores de red
     try:
         with console.status("[bold cyan]  Consultando clima...[/bold cyan]", spinner="dots"):
             resp = requests.get(API_BASE, params=params, timeout=10)
@@ -52,6 +64,7 @@ def obtener_clima(ciudad: str) -> Optional[dict]:
         console.print("[red]  ✗ La solicitud tardó demasiado. Intentá de nuevo.[/red]")
         return None
 
+    # Verificamos el código de respuesta HTTP para detectar errores
     if resp.status_code == 401:
         console.print("[red]  ✗ API key inválida. Revisá OPENWEATHERMAP_API_KEY en tu .env[/red]")
         return None
@@ -62,6 +75,7 @@ def obtener_clima(ciudad: str) -> Optional[dict]:
         console.print(f"[red]  ✗ Error inesperado del servidor ({resp.status_code}).[/red]")
         return None
 
+    # Extraemos los datos relevantes del JSON de respuesta
     data = resp.json()
     viento_ms = data.get("wind", {}).get("speed", 0)
 
@@ -76,9 +90,11 @@ def obtener_clima(ciudad: str) -> Optional[dict]:
     }
 
 
-def mostrar_clima(datos: dict):
+# Muestra los datos del clima en una tabla visual con emojis
+def mostrar_clima(datos):
     emoji = _emoji_condicion(datos["descripcion"])
 
+    # Construimos la tabla con cada campo del clima
     table = Table(
         title=f"📍 [bold cyan]{datos['ciudad']}, {datos['pais']}[/bold cyan]",
         show_header=False,

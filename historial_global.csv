@@ -1,2 +1,5 @@
 NombreDeUsuario,Ciudad,FechaHora,Temperatura_C,Condicion_Clima,Humedad_Porcentaje,Viento_kmh
 facuparma,"San Miguel del Monte, AR",2026-05-18 17:52:01,11.1,Cielo claro,56,9.0
+facuparma,"San Miguel del Monte, AR",2026-05-22 10:11:06,5.5,Cielo claro,69,5.2
+facuparma,"Bahía Blanca, AR",2026-05-22 10:21:50,6.3,Cielo claro,87,16.7
+facuparma,"Mar del Plata, AR",2026-05-22 10:25:03,11.1,Nubes,72,13.0

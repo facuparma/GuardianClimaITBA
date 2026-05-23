@@ -1,7 +1,6 @@
 import csv
+import os
 import re
-from pathlib import Path
-from typing import Optional
 
 from rich.panel import Panel
 from rich.table import Table
@@ -11,45 +10,72 @@ from utils import console, input_no_vacio
 USUARIOS_CSV = "usuarios_simulados.csv"
 HEADERS_USUARIOS = ["username", "password_simulada"]
 
+
+# Funciones de validación para cada regla de contraseña
+def _regla_longitud(p):
+    return len(p) >= 8
+
+def _regla_mayuscula(p):
+    return bool(re.search(r"[A-Z]", p))
+
+def _regla_minuscula(p):
+    return bool(re.search(r"[a-z]", p))
+
+def _regla_numero(p):
+    return bool(re.search(r"\d", p))
+
+def _regla_especial(p):
+    return bool(re.search(r"[!@#$%^&*()\-_=+\[\]{};:'\",.<>?/\\|`~]", p))
+
+
+# Lista de reglas: cada una tiene una descripción y su función de validación
 _REGLAS_PASSWORD = [
-    ("Mínimo 8 caracteres", lambda p: len(p) >= 8),
-    ("Al menos una mayúscula (A-Z)", lambda p: bool(re.search(r"[A-Z]", p))),
-    ("Al menos una minúscula (a-z)", lambda p: bool(re.search(r"[a-z]", p))),
-    ("Al menos un número (0-9)", lambda p: bool(re.search(r"\d", p))),
-    ("Al menos un carácter especial (!@#$%^&*...)", lambda p: bool(re.search(r"[!@#$%^&*()\-_=+\[\]{};:'\",.<>?/\\|`~]", p))),
+    ("Mínimo 8 caracteres", _regla_longitud),
+    ("Al menos una mayúscula (A-Z)", _regla_mayuscula),
+    ("Al menos una minúscula (a-z)", _regla_minuscula),
+    ("Al menos un número (0-9)", _regla_numero),
+    ("Al menos un carácter especial (!@#$%^&*...)", _regla_especial),
 ]
 
 
+# Crea el archivo CSV de usuarios si no existe o está vacío
 def _asegurar_csv():
-    path = Path(USUARIOS_CSV)
-    if not path.exists() or path.stat().st_size == 0:
+    if not os.path.exists(USUARIOS_CSV) or os.path.getsize(USUARIOS_CSV) == 0:
         with open(USUARIOS_CSV, "w", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=HEADERS_USUARIOS).writeheader()
 
 
-def _leer_usuarios() -> list[dict]:
+# Lee todos los usuarios del CSV y los devuelve como lista de diccionarios
+def _leer_usuarios():
     _asegurar_csv()
     with open(USUARIOS_CSV, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
-def _usuario_existe(username: str) -> bool:
-    return any(u["username"].lower() == username.lower() for u in _leer_usuarios())
+# Verifica si ya existe un usuario con ese nombre (sin importar mayúsculas)
+def _usuario_existe(username):
+    for u in _leer_usuarios():
+        if u["username"].lower() == username.lower():
+            return True
+    return False
 
 
-def _guardar_usuario(username: str, password: str):
+# Agrega un nuevo usuario al archivo CSV
+def _guardar_usuario(username, password):
     with open(USUARIOS_CSV, "a", newline="", encoding="utf-8") as f:
         csv.DictWriter(f, fieldnames=HEADERS_USUARIOS).writerow(
             {"username": username, "password_simulada": password}
         )
 
 
-def _mostrar_reglas_password(password: str) -> bool:
+# Muestra una tabla con el estado de cada regla de contraseña (✓ o ✗)
+def _mostrar_reglas_password(password):
     table = Table(show_header=False, box=None, padding=(0, 1))
     table.add_column("estado", no_wrap=True)
     table.add_column("regla", style="white")
 
     todas_pasan = True
+    # Recorremos cada regla y verificamos si la contraseña la cumple
     for desc, validar in _REGLAS_PASSWORD:
         pasa = validar(password)
         if not pasa:
@@ -61,18 +87,21 @@ def _mostrar_reglas_password(password: str) -> bool:
     return todas_pasan
 
 
-def registrar_usuario() -> Optional[str]:
+# Registra un nuevo usuario pidiendo nombre y contraseña válida
+def registrar_usuario():
     console.print(Panel(
         "[bold cyan]REGISTRO DE NUEVO USUARIO[/bold cyan]",
         border_style="cyan",
         padding=(0, 2),
     ))
 
+    # Verificamos que el nombre de usuario no esté ya en uso
     username = input_no_vacio("Nombre de usuario")
     if _usuario_existe(username):
         console.print(f"[red]  ✗ El usuario '[bold]{username}[/bold]' ya existe. Elegí otro nombre.[/red]")
         return None
 
+    # Pedimos contraseña en un bucle hasta que cumpla todas las reglas
     while True:
         password = input_no_vacio("Contraseña", password=True)
         console.print("\n[bold white]  Requisitos de la contraseña:[/bold white]")
@@ -89,7 +118,8 @@ def registrar_usuario() -> Optional[str]:
             )
 
 
-def iniciar_sesion() -> Optional[str]:
+# Verifica el usuario y contraseña contra el CSV y devuelve el nombre si son correctos
+def iniciar_sesion():
     console.print(Panel(
         "[bold cyan]INICIAR SESIÓN[/bold cyan]",
         border_style="cyan",
@@ -99,6 +129,7 @@ def iniciar_sesion() -> Optional[str]:
     username = input_no_vacio("Usuario")
     password = input_no_vacio("Contraseña", password=True)
 
+    # Buscamos el usuario en la lista y comparamos la contraseña
     usuarios = _leer_usuarios()
     for u in usuarios:
         if u["username"].lower() == username.lower() and u["password_simulada"] == password:

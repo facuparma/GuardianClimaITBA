@@ -1,8 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from typing import Optional
-
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -14,7 +12,8 @@ from ia import obtener_consejo_ia
 from utils import console, limpiar_pantalla, imprimir_banner, input_no_vacio, pausar
 
 
-def menu_acceso() -> Optional[str]:
+# Muestra el menú de acceso (login o registro) y devuelve el nombre del usuario
+def menu_acceso():
     while True:
         limpiar_pantalla()
         imprimir_banner()
@@ -28,6 +27,7 @@ def menu_acceso() -> Optional[str]:
 
         opcion = console.input("  [bold cyan]Opción:[/bold cyan] ").strip()
 
+        # Opción 1: iniciar sesión con usuario existente
         if opcion == "1":
             limpiar_pantalla()
             imprimir_banner()
@@ -37,6 +37,7 @@ def menu_acceso() -> Optional[str]:
                 return usuario
             else:
                 pausar()
+        # Opción 2: crear una cuenta nueva
         elif opcion == "2":
             limpiar_pantalla()
             imprimir_banner()
@@ -46,6 +47,7 @@ def menu_acceso() -> Optional[str]:
                 return usuario
             else:
                 pausar()
+        # Opción 3: salir del programa
         elif opcion == "3":
             console.print(Panel(
                 "[bold cyan]  ¡Hasta pronto! 🌤[/bold cyan]",
@@ -58,7 +60,8 @@ def menu_acceso() -> Optional[str]:
             pausar()
 
 
-def flujo_consultar_clima(usuario: str) -> Optional[dict]:
+# Pide una ciudad, obtiene el clima y guarda la consulta en el historial
+def flujo_consultar_clima(usuario):
     limpiar_pantalla()
     imprimir_banner()
     console.print(Panel("[bold cyan]CONSULTAR CLIMA[/bold cyan]", border_style="cyan", padding=(0, 2)))
@@ -74,7 +77,8 @@ def flujo_consultar_clima(usuario: str) -> Optional[dict]:
     return datos
 
 
-def flujo_historial(usuario: str):
+# Muestra el historial de consultas del usuario para una ciudad específica
+def flujo_historial(usuario):
     limpiar_pantalla()
     imprimir_banner()
     console.print(Panel("[bold cyan]HISTORIAL PERSONAL[/bold cyan]", border_style="cyan", padding=(0, 2)))
@@ -86,11 +90,13 @@ def flujo_historial(usuario: str):
     pausar()
 
 
+# Obtiene y muestra las estadísticas globales de todas las consultas
 def flujo_estadisticas():
     limpiar_pantalla()
     imprimir_banner()
 
     stats = estadisticas_globales()
+    # Si no hay datos todavía, mostramos un mensaje informativo
     if not stats:
         console.print(Panel(
             "[yellow]  Aún no hay consultas registradas.[/yellow]",
@@ -99,6 +105,7 @@ def flujo_estadisticas():
             padding=(1, 2),
         ))
     else:
+        # Construimos la tabla con los datos calculados
         table = Table(show_header=False, border_style="cyan", padding=(0, 2))
         table.add_column("campo", style="bold white", no_wrap=True)
         table.add_column("valor", style="white")
@@ -118,11 +125,13 @@ def flujo_estadisticas():
     pausar()
 
 
-def flujo_consejo_ia(usuario: str, ultimo_clima: Optional[dict]):
+# Pide consejo de vestimenta a la IA usando el último clima consultado
+def flujo_consejo_ia(usuario, ultimo_clima):
     limpiar_pantalla()
     imprimir_banner()
     console.print(Panel("[bold cyan]CONSEJO DE VESTIMENTA (IA)[/bold cyan]", border_style="cyan", padding=(0, 2)))
 
+    # Si no hay clima reciente en esta sesión, avisamos al usuario
     if not ultimo_clima:
         console.print(Panel(
             "[yellow]  No tenés una consulta de clima reciente en esta sesión.\n"
@@ -133,6 +142,7 @@ def flujo_consejo_ia(usuario: str, ultimo_clima: Optional[dict]):
         pausar()
         return
 
+    # Mostramos el resumen del clima antes del consejo
     resumen = Text()
     resumen.append("  Clima actual: ", style="white")
     resumen.append(f"{ultimo_clima['temperatura']}°C", style="bold yellow")
@@ -140,6 +150,7 @@ def flujo_consejo_ia(usuario: str, ultimo_clima: Optional[dict]):
     console.print(resumen)
     console.print()
 
+    # Llamamos a la IA y mostramos el consejo si se obtuvo correctamente
     consejo = obtener_consejo_ia(ultimo_clima)
     if consejo:
         console.print(Panel(
@@ -151,6 +162,7 @@ def flujo_consejo_ia(usuario: str, ultimo_clima: Optional[dict]):
     pausar()
 
 
+# Muestra información sobre la aplicación y las APIs que usa
 def mostrar_acerca_de():
     limpiar_pantalla()
     imprimir_banner()
@@ -177,8 +189,10 @@ def mostrar_acerca_de():
     pausar()
 
 
-def menu_principal(usuario: str):
-    ultimo_clima: Optional[dict] = None
+# Menú principal que aparece después de iniciar sesión
+def menu_principal(usuario):
+    # Guardamos el último clima consultado para poder usarlo en el consejo de IA
+    ultimo_clima = None
 
     while True:
         limpiar_pantalla()
@@ -203,6 +217,7 @@ def menu_principal(usuario: str):
 
         opcion = console.input("  [bold cyan]Opción:[/bold cyan] ").strip()
 
+        # Ejecutamos la acción correspondiente a la opción elegida
         if opcion == "1":
             datos = flujo_consultar_clima(usuario)
             if datos:
@@ -227,6 +242,7 @@ def menu_principal(usuario: str):
             pausar()
 
 
+# Punto de entrada del programa: maneja el ciclo de sesiones de usuario
 def main():
     while True:
         usuario = menu_acceso()

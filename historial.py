@@ -1,8 +1,6 @@
 import csv
-from collections import Counter
+import os
 from datetime import datetime
-from pathlib import Path
-from typing import Optional
 
 from rich.panel import Panel
 from rich.table import Table
@@ -21,20 +19,27 @@ HEADERS_HISTORIAL = [
 ]
 
 
+# Crea el archivo CSV del historial si no existe o está vacío
 def _asegurar_csv():
-    path = Path(HISTORIAL_CSV)
-    if not path.exists() or path.stat().st_size == 0:
+    if not os.path.exists(HISTORIAL_CSV) or os.path.getsize(HISTORIAL_CSV) == 0:
         with open(HISTORIAL_CSV, "w", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=HEADERS_HISTORIAL).writeheader()
 
 
-def _leer_historial() -> list[dict]:
+# Lee todas las filas del historial y las devuelve como lista de diccionarios
+def _leer_historial():
     _asegurar_csv()
     with open(HISTORIAL_CSV, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
 
-def guardar_consulta(username: str, weather_data: dict):
+# Función auxiliar para ordenar filas por fecha y hora
+def _clave_fecha(r):
+    return r["FechaHora"]
+
+
+# Guarda una nueva fila en el historial con los datos del clima consultado
+def guardar_consulta(username, weather_data):
     _asegurar_csv()
     fila = {
         "NombreDeUsuario": username,
@@ -49,9 +54,11 @@ def guardar_consulta(username: str, weather_data: dict):
         csv.DictWriter(f, fieldnames=HEADERS_HISTORIAL).writerow(fila)
 
 
-def ver_historial_personal(username: str, ciudad: str):
+# Muestra en una tabla las consultas del usuario para una ciudad dada
+def ver_historial_personal(username, ciudad):
     filas = _leer_historial()
     ciudad_lower = ciudad.lower()
+    # Filtramos las filas que corresponden al usuario y ciudad indicados
     filtradas = [
         r for r in filas
         if r["NombreDeUsuario"].lower() == username.lower()
@@ -68,8 +75,10 @@ def ver_historial_personal(username: str, ciudad: str):
         console.print(f"[yellow]  Sin consultas registradas para '[bold]{ciudad}[/bold]'.[/yellow]")
         return
 
-    filtradas.sort(key=lambda r: r["FechaHora"])
+    # Ordenamos las filas por fecha y hora antes de mostrarlas
+    filtradas.sort(key=_clave_fecha)
 
+    # Construimos la tabla con todas las consultas encontradas
     table = Table(
         border_style="cyan",
         header_style="bold cyan",
@@ -94,14 +103,30 @@ def ver_historial_personal(username: str, ciudad: str):
     console.print(f"\n[bold green]  Total: {len(filtradas)} consulta(s)[/bold green]")
 
 
-def estadisticas_globales() -> Optional[dict]:
+# Calcula estadísticas globales: ciudad más consultada, total y temperatura promedio
+def estadisticas_globales():
     filas = _leer_historial()
     if not filas:
         return None
 
-    ciudades = Counter(r["Ciudad"] for r in filas)
-    ciudad_top = ciudades.most_common(1)[0][0]
+    # Contamos cuántas veces aparece cada ciudad usando un diccionario
+    conteo_ciudades = {}
+    for r in filas:
+        ciudad = r["Ciudad"]
+        if ciudad in conteo_ciudades:
+            conteo_ciudades[ciudad] += 1
+        else:
+            conteo_ciudades[ciudad] = 1
 
+    # Buscamos la ciudad con el conteo más alto
+    ciudad_top = None
+    max_conteo = 0
+    for ciudad, conteo in conteo_ciudades.items():
+        if conteo > max_conteo:
+            max_conteo = conteo
+            ciudad_top = ciudad
+
+    # Calculamos la temperatura promedio ignorando valores que no sean números
     temps = []
     for r in filas:
         try:
@@ -116,10 +141,13 @@ def estadisticas_globales() -> Optional[dict]:
     }
 
 
-def get_ultima_consulta(username: str) -> Optional[dict]:
+# Devuelve la última consulta del usuario desde el historial
+def get_ultima_consulta(username):
     filas = _leer_historial()
+    # Filtramos solo las filas del usuario indicado
     del_usuario = [r for r in filas if r["NombreDeUsuario"].lower() == username.lower()]
     if not del_usuario:
         return None
-    del_usuario.sort(key=lambda r: r["FechaHora"])
+    # Ordenamos por fecha y devolvemos la más reciente
+    del_usuario.sort(key=_clave_fecha)
     return del_usuario[-1]
